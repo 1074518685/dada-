@@ -276,6 +276,8 @@ h1 {
   top: 50%;
   z-index: 2;
   display: grid;
+  grid-template-rows: auto auto;
+  gap: 8px;
   place-items: center;
   width: 146px;
   height: 146px;
@@ -298,13 +300,6 @@ h1 {
   color: #fffaf0;
   background: var(--ink);
   font-size: 16px;
-  font-weight: 950;
-}
-
-.table-core strong {
-  margin-top: 4px;
-  font-size: 24px;
-  line-height: 1;
   font-weight: 950;
 }
 
@@ -493,10 +488,6 @@ h1 {
     height: 126px;
   }
 
-  .table-core strong {
-    font-size: 20px;
-  }
-
   .seat {
     width: 54px;
     height: 54px;
@@ -513,9 +504,54 @@ h1 {
 }
 
 @media (max-width: 520px) {
+  body {
+    background:
+      radial-gradient(circle at 8% 4%, rgba(242, 184, 75, 0.26) 0 10rem, transparent 10.2rem),
+      radial-gradient(circle at 102% 19%, rgba(27, 154, 147, 0.2) 0 15rem, transparent 15.2rem),
+      linear-gradient(145deg, #fbf4e6 0%, var(--bg) 52%, #e8f1ec 100%);
+  }
+
+  .app {
+    width: calc(100vw - 18px);
+    padding-top: 16px;
+  }
+
+  h1 {
+    font-size: clamp(48px, 15vw, 62px);
+  }
+
+  .control-panel {
+    width: 100%;
+    gap: 10px;
+    padding: 12px;
+    grid-template-columns: 1fr 1fr 48px;
+  }
+
+  .name-field input {
+    height: 46px;
+  }
+
+  .primary-button,
+  .ghost-button,
+  .icon-button {
+    height: 46px;
+  }
+
+  .primary-button,
+  .ghost-button {
+    min-width: 0;
+  }
+
+  .icon-button {
+    width: 48px;
+  }
+
   .status-strip {
     align-items: start;
     flex-direction: column;
+    gap: 12px;
+    margin: 18px 0 14px;
+    padding: 14px 18px;
   }
 
   .selection-text {
@@ -528,52 +564,93 @@ h1 {
   }
 
   .floor {
-    height: 590px;
-    min-height: 590px;
+    height: 560px;
+    min-height: 560px;
+    background-size: 40px 40px, 40px 40px, auto;
   }
 
   .table-node {
-    --size: 144px;
+    --size: 132px;
+  }
+
+  .table-top {
+    top: 25%;
   }
 
   .table-left {
-    left: 25%;
+    left: 24%;
+    top: 70%;
   }
 
   .table-right {
-    left: 75%;
+    left: 76%;
+    top: 70%;
   }
 
   .table-core {
-    width: 84px;
-    height: 84px;
-    border-width: 5px;
+    width: 78px;
+    height: 78px;
+    padding: 10px;
+    border-width: 4px;
+    grid-template-rows: auto auto;
+    gap: 6px;
+    box-shadow: 0 12px 0 var(--shadow);
   }
 
-  .table-core strong {
-    font-size: 14px;
+  .table-id {
+    width: 24px;
+    height: 24px;
+    font-size: 13px;
   }
 
   .table-core small {
-    font-size: 9px;
+    font-size: 8px;
   }
 
   .seat {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     border-width: 2px;
+    box-shadow: 0 6px 0 rgba(24, 33, 39, 0.14);
   }
 
   .seat-number {
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .seat-name {
-    max-width: 34px;
-    font-size: 9px;
+    max-width: 30px;
+    font-size: 8px;
+  }
+
+  .seat.is-locked::after {
+    right: -8px;
+    top: -9px;
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+  }
+
+  .line {
+    opacity: 0.72;
+    width: 210px;
+  }
+
+  .line-left {
+    transform: translate(-4px, -2px) rotate(138deg);
+  }
+
+  .line-right {
+    transform: translate(4px, -2px) rotate(42deg);
+  }
+
+  .line-bottom {
+    width: 220px;
+    transform: translate(-110px, 190px);
   }
 
   .legend {
     gap: 14px;
+    padding-top: 14px;
   }
 }
