@@ -1,3 +1,5 @@
+import { firebaseConfig } from "./firebase-config.js";
+
 const TABLES = [
   { id: "A", name: "山茶桌" },
   { id: "B", name: "青柠桌" },
@@ -5,32 +7,58 @@ const TABLES = [
 ];
 
 const SEATS_PER_TABLE = 8;
-const STORAGE_KEY = "round-table-seat-locks-v1";
+const LOCAL_STORAGE_KEY = "round-table-seat-locks-v2";
+const LOCAL_OWNER_KEY = "round-table-seat-owner-token-v1";
+const FIREBASE_VERSION = "10.12.5";
 
 const guestNameInput = document.querySelector("#guestName");
 const lockButton = document.querySelector("#lockButton");
 const releaseButton = document.querySelector("#releaseButton");
-const resetButton = document.querySelector("#resetButton");
+const reloadButton = document.querySelector("#reloadButton");
 const lockedCount = document.querySelector("#lockedCount");
 const selectionText = document.querySelector("#selectionText");
+const syncStatus = document.querySelector("#syncStatus");
 
 let selectedSeatId = null;
-let lockedSeats = loadSeats();
+let lockedSeats = {};
+let mode = "local";
+let modeLabel = "本机演示";
+let currentOwnerId = getLocalOwnerId();
+let firestoreApi = null;
 
 function seatId(tableId, seatNumber) {
   return `${tableId}-${seatNumber}`;
 }
 
-function loadSeats() {
+function isFirebaseConfigured() {
+  return Boolean(
+    firebaseConfig?.apiKey &&
+      firebaseConfig?.authDomain &&
+      firebaseConfig?.projectId &&
+      firebaseConfig?.appId,
+  );
+}
+
+function getLocalOwnerId() {
+  const existing = localStorage.getItem(LOCAL_OWNER_KEY);
+  if (existing) return existing;
+
+  const created =
+    crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  localStorage.setItem(LOCAL_OWNER_KEY, created);
+  return created;
+}
+
+function loadLocalSeats() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY)) || {};
   } catch {
     return {};
   }
 }
 
-function saveSeats() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(lockedSeats));
+function saveLocalSeats() {
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(lockedSeats));
 }
 
 function getSeatLabel(id) {
@@ -74,36 +102,136 @@ function selectSeat(id) {
   render();
 }
 
-function lockSelectedSeat() {
-  if (!selectedSeatId) return;
+function canReleaseSeat(lock) {
+  return Boolean(lock && lock.ownerId === currentOwnerId);
+}
 
-  const name = guestNameInput.value.trim() || "已占座";
-  lockedSeats[selectedSeatId] = {
-    name,
-    lockedAt: new Date().toISOString(),
+async function lockSelectedSeat() {
+  if (!selectedSeatId || lockedSeats[selectedSeatId]) return;
+
+  const name = guestNameInput.value.trim();
+  if (!name) {
+    guestNameInput.focus();
+    selectionText.textContent = "请先输入姓名";
+    return;
+  }
+
+  lockButton.disabled = true;
+
+  try {
+    if (mode === "remote") {
+      await lockRemoteSeat(selectedSeatId, name);
+    } else {
+      lockedSeats[selectedSeatId] = {
+        seatId: selectedSeatId,
+        name,
+        ownerId: currentOwnerId,
+        lockedAt: new Date().toISOString(),
+      };
+      saveLocalSeats();
+      render();
+    }
+  } catch (error) {
+    selectionText.textContent = error.message || "锁定失败，请重试";
+    render();
+  }
+}
+
+async function releaseSelectedSeat() {
+  const currentLock = selectedSeatId ? lockedSeats[selectedSeatId] : null;
+  if (!selectedSeatId || !canReleaseSeat(currentLock)) return;
+
+  releaseButton.disabled = true;
+
+  try {
+    if (mode === "remote") {
+      await firestoreApi.deleteDoc(firestoreApi.doc(firestoreApi.db, "seatLocks", selectedSeatId));
+    } else {
+      delete lockedSeats[selectedSeatId];
+      saveLocalSeats();
+      render();
+    }
+  } catch (error) {
+    selectionText.textContent = error.message || "释放失败，请重试";
+    render();
+  }
+}
+
+async function lockRemoteSeat(id, name) {
+  const seatRef = firestoreApi.doc(firestoreApi.db, "seatLocks", id);
+
+  await firestoreApi.runTransaction(firestoreApi.db, async (transaction) => {
+    const snapshot = await transaction.get(seatRef);
+    if (snapshot.exists()) {
+      throw new Error("这个座位已经被锁定");
+    }
+
+    transaction.set(seatRef, {
+      seatId: id,
+      name,
+      ownerUid: currentOwnerId,
+      lockedAt: firestoreApi.serverTimestamp(),
+    });
+  });
+}
+
+async function startRemoteSync() {
+  const [
+    firebaseApp,
+    firebaseAuth,
+    firebaseFirestore,
+  ] = await Promise.all([
+    import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`),
+    import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`),
+    import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`),
+  ]);
+
+  const app = firebaseApp.initializeApp(firebaseConfig);
+  const auth = firebaseAuth.getAuth(app);
+  await firebaseAuth.signInAnonymously(auth);
+
+  currentOwnerId = auth.currentUser.uid;
+  mode = "remote";
+  modeLabel = "实时同步";
+
+  const db = firebaseFirestore.getFirestore(app);
+  firestoreApi = {
+    db,
+    collection: firebaseFirestore.collection,
+    deleteDoc: firebaseFirestore.deleteDoc,
+    doc: firebaseFirestore.doc,
+    onSnapshot: firebaseFirestore.onSnapshot,
+    runTransaction: firebaseFirestore.runTransaction,
+    serverTimestamp: firebaseFirestore.serverTimestamp,
   };
-  saveSeats();
-  render();
+
+  const seatsCollection = firestoreApi.collection(db, "seatLocks");
+  firestoreApi.onSnapshot(
+    seatsCollection,
+    (snapshot) => {
+      lockedSeats = {};
+      snapshot.forEach((item) => {
+        const data = item.data();
+        lockedSeats[item.id] = {
+          seatId: data.seatId || item.id,
+          name: data.name || "已占座",
+          ownerId: data.ownerUid,
+          lockedAt: data.lockedAt,
+        };
+      });
+      render();
+    },
+    () => {
+      modeLabel = "同步异常";
+      syncStatus.textContent = modeLabel;
+    },
+  );
 }
 
-function releaseSelectedSeat() {
-  if (!selectedSeatId || !lockedSeats[selectedSeatId]) return;
-
-  delete lockedSeats[selectedSeatId];
-  saveSeats();
-  render();
-}
-
-function resetSeats() {
-  const hasLockedSeats = Object.keys(lockedSeats).length > 0;
-  if (!hasLockedSeats) return;
-
-  const confirmed = window.confirm("清空全部已锁定座位？");
-  if (!confirmed) return;
-
-  lockedSeats = {};
-  selectedSeatId = null;
-  saveSeats();
+function startLocalMode() {
+  mode = "local";
+  modeLabel = "本机演示";
+  lockedSeats = loadLocalSeats();
   render();
 }
 
@@ -111,27 +239,31 @@ function render() {
   document.querySelectorAll(".seat").forEach((seat) => {
     const id = seat.dataset.seatId;
     const locked = lockedSeats[id];
+    const mine = canReleaseSeat(locked);
     const name = seat.querySelector(".seat-name");
 
     seat.classList.toggle("is-selected", id === selectedSeatId);
     seat.classList.toggle("is-locked", Boolean(locked));
+    seat.classList.toggle("is-mine", mine);
     seat.setAttribute("aria-pressed", id === selectedSeatId ? "true" : "false");
     name.textContent = locked?.name || "";
   });
 
   const currentLock = selectedSeatId ? lockedSeats[selectedSeatId] : null;
-  const hasSelection = Boolean(selectedSeatId);
   const occupied = Object.keys(lockedSeats).length;
+  const ownsSelectedSeat = canReleaseSeat(currentLock);
 
   lockedCount.textContent = occupied;
-  lockButton.disabled = !hasSelection;
-  releaseButton.disabled = !currentLock;
-  resetButton.disabled = occupied === 0;
+  syncStatus.textContent = modeLabel;
+  lockButton.disabled = !selectedSeatId || Boolean(currentLock);
+  releaseButton.disabled = !ownsSelectedSeat;
 
   if (!selectedSeatId) {
     selectionText.textContent = "请选择座位";
+  } else if (ownsSelectedSeat) {
+    selectionText.textContent = `${getSeatLabel(selectedSeatId)} · ${currentLock.name} · 可释放`;
   } else if (currentLock) {
-    selectionText.textContent = `${getSeatLabel(selectedSeatId)} · ${currentLock.name}`;
+    selectionText.textContent = `${getSeatLabel(selectedSeatId)} · ${currentLock.name} 已锁定`;
   } else {
     selectionText.textContent = `${getSeatLabel(selectedSeatId)} · 待锁定`;
   }
@@ -145,7 +277,16 @@ guestNameInput.addEventListener("keydown", (event) => {
 
 lockButton.addEventListener("click", lockSelectedSeat);
 releaseButton.addEventListener("click", releaseSelectedSeat);
-resetButton.addEventListener("click", resetSeats);
+reloadButton.addEventListener("click", () => window.location.reload());
 
 createSeats();
-render();
+
+if (isFirebaseConfigured()) {
+  syncStatus.textContent = "正在连接";
+  startRemoteSync().catch(() => {
+    modeLabel = "连接失败";
+    startLocalMode();
+  });
+} else {
+  startLocalMode();
+}

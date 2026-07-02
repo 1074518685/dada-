@@ -28,8 +28,8 @@
             释放
           </button>
 
-          <button id="resetButton" class="icon-button" type="button" title="清空全部座位" aria-label="清空全部座位">
-            ↺
+          <button id="reloadButton" class="icon-button" type="button" title="刷新状态" aria-label="刷新状态">
+            ↻
           </button>
         </section>
       </header>
@@ -39,7 +39,10 @@
           <span class="status-label">已锁定</span>
           <strong id="lockedCount">0</strong><span>/24</span>
         </div>
-        <div id="selectionText" class="selection-text">请选择座位</div>
+        <div>
+          <span id="syncStatus" class="sync-status">正在连接</span>
+          <div id="selectionText" class="selection-text">请选择座位</div>
+        </div>
       </section>
 
       <section class="floor" aria-label="三张圆桌座位图">
@@ -84,6 +87,6 @@
       </aside>
     </main>
 
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>

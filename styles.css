@@ -183,6 +183,15 @@ h1 {
   font-weight: 900;
 }
 
+.sync-status {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(253, 248, 234, 0.62);
+  font-size: 12px;
+  font-weight: 850;
+  text-align: right;
+}
+
 .floor {
   position: relative;
   height: min(720px, calc(100vh - 210px));
@@ -395,6 +404,14 @@ h1 {
   box-shadow: 0 9px 0 rgba(169, 59, 44, 0.25), 0 0 0 8px rgba(242, 184, 75, 0.28);
 }
 
+.seat.is-mine {
+  background: var(--teal-dark);
+}
+
+.seat.is-mine::after {
+  content: "我";
+}
+
 .legend {
   display: flex;
   justify-content: center;
@@ -503,6 +520,10 @@ h1 {
 
   .selection-text {
     min-width: 0;
+    text-align: left;
+  }
+
+  .sync-status {
     text-align: left;
   }
 

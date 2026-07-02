@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /seatLocks/{seatId} {
+      allow read: if true;
+
+      allow create: if request.auth != null
+        && !exists(/databases/$(database)/documents/seatLocks/$(seatId))
+        && request.resource.data.seatId == seatId
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 10;
+
+      allow update: if false;
+
+      allow delete: if request.auth != null
+        && resource.data.ownerUid == request.auth.uid;
+    }
+  }
+}
