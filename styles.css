@@ -18,16 +18,28 @@
 }
 
 body {
+  position: relative;
   margin: 0;
   min-height: 100vh;
   color: var(--ink);
   background:
-    radial-gradient(circle at 10% 12%, rgba(242, 184, 75, 0.28) 0 14rem, transparent 14.2rem),
-    radial-gradient(circle at 91% 15%, rgba(27, 154, 147, 0.22) 0 17rem, transparent 17.2rem),
+    linear-gradient(135deg, rgba(255, 250, 240, 0.2), rgba(220, 244, 236, 0.1)),
+    url("assets/team-building-bg.svg") center top / cover fixed,
     linear-gradient(145deg, #fbf4e6 0%, var(--bg) 48%, #e8f1ec 100%);
   font-family:
     "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
     sans-serif;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 250, 240, 0.66) 0 28%, rgba(255, 250, 240, 0.34) 46%, rgba(232, 247, 240, 0.38) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 250, 240, 0.46));
 }
 
 button,
@@ -44,6 +56,8 @@ button:disabled {
 }
 
 .app {
+  position: relative;
+  z-index: 1;
   width: min(1180px, calc(100vw - 32px));
   min-height: 100vh;
   margin: 0 auto;
@@ -276,8 +290,8 @@ h1 {
   top: 50%;
   z-index: 2;
   display: grid;
-  grid-template-rows: auto auto;
-  gap: 8px;
+  grid-template-rows: 30px auto auto;
+  gap: 3px;
   place-items: center;
   width: 146px;
   height: 146px;
@@ -301,6 +315,14 @@ h1 {
   background: var(--ink);
   font-size: 16px;
   font-weight: 950;
+}
+
+.table-core strong {
+  margin-top: 4px;
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 950;
+  white-space: nowrap;
 }
 
 .table-core small {
@@ -506,9 +528,15 @@ h1 {
 @media (max-width: 520px) {
   body {
     background:
-      radial-gradient(circle at 8% 4%, rgba(242, 184, 75, 0.26) 0 10rem, transparent 10.2rem),
-      radial-gradient(circle at 102% 19%, rgba(27, 154, 147, 0.2) 0 15rem, transparent 15.2rem),
+      linear-gradient(135deg, rgba(255, 250, 240, 0.18), rgba(220, 244, 236, 0.08)),
+      url("assets/team-building-bg.svg") 50% 0 / auto 1000px no-repeat fixed,
       linear-gradient(145deg, #fbf4e6 0%, var(--bg) 52%, #e8f1ec 100%);
+  }
+
+  body::before {
+    background:
+      linear-gradient(180deg, rgba(255, 250, 240, 0.58) 0 35%, rgba(255, 250, 240, 0.28) 62%, rgba(232, 247, 240, 0.58) 100%),
+      linear-gradient(90deg, rgba(255, 250, 240, 0.24), rgba(232, 247, 240, 0.22));
   }
 
   .app {
@@ -592,8 +620,8 @@ h1 {
     height: 78px;
     padding: 10px;
     border-width: 4px;
-    grid-template-rows: auto auto;
-    gap: 6px;
+    grid-template-rows: 22px auto auto;
+    gap: 1px;
     box-shadow: 0 12px 0 var(--shadow);
   }
 
@@ -605,6 +633,11 @@ h1 {
 
   .table-core small {
     font-size: 8px;
+  }
+
+  .table-core strong {
+    margin-top: 0;
+    font-size: 13px;
   }
 
   .seat {

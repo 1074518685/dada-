@@ -1,9 +1,9 @@
 import { firebaseConfig } from "./firebase-config.js";
 
 const TABLES = [
-  { id: "A", name: "A桌" },
-  { id: "B", name: "B桌" },
-  { id: "C", name: "C桌" },
+  { id: "A", name: "微辣" },
+  { id: "B", name: "微微辣" },
+  { id: "C", name: "正常辣" },
 ];
 
 const SEATS_PER_TABLE = 8;
