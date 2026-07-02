@@ -49,7 +49,6 @@ service cloud.firestore {
         && validSeatLockCreate(seatId)
         && !exists(seatPath(seatId))
         && !exists(userSelectionPath(request.auth.uid))
-        && existsAfter(userSelectionPath(request.auth.uid))
         && getAfter(userSelectionPath(request.auth.uid)).data.seatId == seatId
         && getAfter(userSelectionPath(request.auth.uid)).data.ownerUid == request.auth.uid;
 
@@ -57,7 +56,7 @@ service cloud.firestore {
 
       allow delete: if signedIn()
         && resource.data.ownerUid == request.auth.uid
-        && !existsAfter(userSelectionPath(request.auth.uid));
+        && getAfter(userSelectionPath(request.auth.uid)).data == null;
     }
 
     match /userSelections/{uid} {
@@ -67,7 +66,6 @@ service cloud.firestore {
         && uid == request.auth.uid
         && validUserSelectionCreate(uid)
         && !exists(userSelectionPath(uid))
-        && existsAfter(seatPath(request.resource.data.seatId))
         && getAfter(seatPath(request.resource.data.seatId)).data.seatId == request.resource.data.seatId
         && getAfter(seatPath(request.resource.data.seatId)).data.ownerUid == request.auth.uid;
 
@@ -75,7 +73,7 @@ service cloud.firestore {
 
       allow delete: if signedIn()
         && uid == request.auth.uid
-        && !existsAfter(seatPath(resource.data.seatId));
+        && getAfter(seatPath(resource.data.seatId)).data == null;
     }
   }
 }
