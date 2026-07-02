@@ -229,6 +229,13 @@ async function releaseRemoteSeat(id) {
 }
 
 async function startRemoteSync() {
+  const connectionTimer = window.setTimeout(() => {
+    if (syncStatus.textContent.trim() === "正在连接") {
+      syncStatus.textContent = "连接较慢";
+      selectionText.textContent = "请刷新页面或检查网络";
+    }
+  }, 12000);
+
   const [
     firebaseApp,
     firebaseAuth,
@@ -246,6 +253,7 @@ async function startRemoteSync() {
   currentOwnerId = auth.currentUser.uid;
   mode = "remote";
   modeLabel = "实时同步";
+  syncStatus.textContent = modeLabel;
 
   const db = firebaseFirestore.getFirestore(app);
   firestoreApi = {
@@ -262,6 +270,8 @@ async function startRemoteSync() {
   firestoreApi.onSnapshot(
     seatsCollection,
     (snapshot) => {
+      window.clearTimeout(connectionTimer);
+      modeLabel = "实时同步";
       lockedSeats = {};
       snapshot.forEach((item) => {
         const data = item.data();
@@ -275,8 +285,10 @@ async function startRemoteSync() {
       render();
     },
     () => {
+      window.clearTimeout(connectionTimer);
       modeLabel = "同步异常";
       syncStatus.textContent = modeLabel;
+      selectionText.textContent = "请检查 Firestore Rules 是否已发布";
     },
   );
 }
