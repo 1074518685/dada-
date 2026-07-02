@@ -25,6 +25,7 @@ let mode = "local";
 let modeLabel = "本机演示";
 let currentOwnerId = getLocalOwnerId();
 let firestoreApi = null;
+let actionInProgress = false;
 
 function seatId(tableId, seatNumber) {
   return `${tableId}-${seatNumber}`;
@@ -111,7 +112,17 @@ function getMySeatId() {
 }
 
 async function lockSelectedSeat() {
-  if (!selectedSeatId || lockedSeats[selectedSeatId]) return;
+  if (actionInProgress) return;
+
+  if (!selectedSeatId) {
+    selectionText.textContent = "请先点击一个空座位";
+    return;
+  }
+
+  if (lockedSeats[selectedSeatId]) {
+    selectionText.textContent = "这个座位已经被锁定";
+    return;
+  }
 
   const mySeatId = getMySeatId();
   if (mySeatId) {
@@ -126,7 +137,8 @@ async function lockSelectedSeat() {
     return;
   }
 
-  lockButton.disabled = true;
+  actionInProgress = true;
+  render();
 
   try {
     if (mode === "remote") {
@@ -142,32 +154,56 @@ async function lockSelectedSeat() {
       render();
     }
   } catch (error) {
-    selectionText.textContent = error.message || "锁定失败，请重试";
+    actionInProgress = false;
     render();
+    selectionText.textContent = error.message || "锁定失败，请重试";
+    return;
   }
+
+  actionInProgress = false;
+  render();
 }
 
 async function releaseSelectedSeat() {
-  const currentLock = selectedSeatId ? lockedSeats[selectedSeatId] : null;
-  if (!selectedSeatId || !canReleaseSeat(currentLock)) return;
+  if (actionInProgress) return;
 
-  releaseButton.disabled = true;
+  const mySeatId = getMySeatId();
+  if (!mySeatId) {
+    selectionText.textContent = "你还没有预选座位";
+    return;
+  }
+
+  const releaseSeatId = canReleaseSeat(lockedSeats[selectedSeatId]) ? selectedSeatId : mySeatId;
+  const currentLock = lockedSeats[releaseSeatId];
+  if (!canReleaseSeat(currentLock)) {
+    selectionText.textContent = "只能释放你本人预选的座位";
+    return;
+  }
+
+  selectedSeatId = releaseSeatId;
+  actionInProgress = true;
+  render();
 
   try {
     if (mode === "remote") {
-      await releaseRemoteSeat(selectedSeatId);
+      await releaseRemoteSeat(releaseSeatId);
     } else {
-      delete lockedSeats[selectedSeatId];
+      delete lockedSeats[releaseSeatId];
       saveLocalSeats();
       render();
     }
   } catch (error) {
+    actionInProgress = false;
+    render();
     selectionText.textContent =
       error.code === "permission-denied"
         ? "释放失败，请发布最新版 Firestore Rules"
         : error.message || "释放失败，请重试";
-    render();
+    return;
   }
+
+  actionInProgress = false;
+  render();
 }
 
 async function lockRemoteSeat(id, name) {
@@ -323,8 +359,8 @@ function render() {
   const mySeatId = getMySeatId();
   const hasOtherSeat = Boolean(mySeatId && mySeatId !== selectedSeatId);
 
-  lockButton.disabled = !selectedSeatId || Boolean(currentLock) || hasOtherSeat;
-  releaseButton.disabled = !ownsSelectedSeat;
+  lockButton.disabled = actionInProgress;
+  releaseButton.disabled = actionInProgress;
 
   if (!selectedSeatId) {
     selectionText.textContent = "请选择座位";
