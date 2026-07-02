@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>团建座位锁定</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div>
+          <p class="kicker">Seat Map</p>
+          <h1>圆桌座位锁定</h1>
+        </div>
+
+        <section class="control-panel" aria-label="座位操作">
+          <label class="name-field">
+            <span>姓名</span>
+            <input id="guestName" type="text" maxlength="10" placeholder="输入姓名" />
+          </label>
+
+          <button id="lockButton" class="primary-button" type="button" disabled>
+            锁定
+          </button>
+
+          <button id="releaseButton" class="ghost-button" type="button" disabled>
+            释放
+          </button>
+
+          <button id="resetButton" class="icon-button" type="button" title="清空全部座位" aria-label="清空全部座位">
+            ↺
+          </button>
+        </section>
+      </header>
+
+      <section class="status-strip" aria-live="polite">
+        <div>
+          <span class="status-label">已锁定</span>
+          <strong id="lockedCount">0</strong><span>/24</span>
+        </div>
+        <div id="selectionText" class="selection-text">请选择座位</div>
+      </section>
+
+      <section class="floor" aria-label="三张圆桌座位图">
+        <div class="connection-lines" aria-hidden="true">
+          <span class="line line-left"></span>
+          <span class="line line-right"></span>
+          <span class="line line-bottom"></span>
+        </div>
+
+        <article class="table-node table-top" data-table="A">
+          <div class="table-core">
+            <span class="table-id">A</span>
+            <strong>山茶桌</strong>
+            <small>8 seats</small>
+          </div>
+          <div class="seat-ring" data-ring="A"></div>
+        </article>
+
+        <article class="table-node table-left" data-table="B">
+          <div class="table-core">
+            <span class="table-id">B</span>
+            <strong>青柠桌</strong>
+            <small>8 seats</small>
+          </div>
+          <div class="seat-ring" data-ring="B"></div>
+        </article>
+
+        <article class="table-node table-right" data-table="C">
+          <div class="table-core">
+            <span class="table-id">C</span>
+            <strong>番茄桌</strong>
+            <small>8 seats</small>
+          </div>
+          <div class="seat-ring" data-ring="C"></div>
+        </article>
+      </section>
+
+      <aside class="legend" aria-label="座位状态">
+        <span><i class="dot available"></i>可选</span>
+        <span><i class="dot selected"></i>已选</span>
+        <span><i class="dot locked"></i>已锁</span>
+      </aside>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
