@@ -162,7 +162,10 @@ async function releaseSelectedSeat() {
       render();
     }
   } catch (error) {
-    selectionText.textContent = error.message || "释放失败，请重试";
+    selectionText.textContent =
+      error.code === "permission-denied"
+        ? "释放失败，请发布最新版 Firestore Rules"
+        : error.message || "释放失败，请重试";
     render();
   }
 }

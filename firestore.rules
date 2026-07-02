@@ -55,8 +55,7 @@ service cloud.firestore {
       allow update: if false;
 
       allow delete: if signedIn()
-        && resource.data.ownerUid == request.auth.uid
-        && getAfter(userSelectionPath(request.auth.uid)).data == null;
+        && resource.data.ownerUid == request.auth.uid;
     }
 
     match /userSelections/{uid} {
@@ -73,7 +72,7 @@ service cloud.firestore {
 
       allow delete: if signedIn()
         && uid == request.auth.uid
-        && getAfter(seatPath(resource.data.seatId)).data == null;
+        && resource.data.ownerUid == request.auth.uid;
     }
   }
 }
