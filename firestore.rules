@@ -2,21 +2,80 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function seatPath(seatId) {
+      return /databases/$(database)/documents/seatLocks/$(seatId);
+    }
+
+    function userSelectionPath(uid) {
+      return /databases/$(database)/documents/userSelections/$(uid);
+    }
+
+    function validSeatId(seatId) {
+      return seatId.matches('^[ABC]-[1-8]$');
+    }
+
+    function validName() {
+      return request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 10;
+    }
+
+    function validSeatLockCreate(seatId) {
+      return request.resource.data.keys().hasOnly(['seatId', 'name', 'ownerUid', 'lockedAt'])
+        && request.resource.data.seatId == seatId
+        && request.resource.data.ownerUid == request.auth.uid
+        && validName()
+        && request.resource.data.lockedAt is timestamp;
+    }
+
+    function validUserSelectionCreate(uid) {
+      return request.resource.data.keys().hasOnly(['seatId', 'name', 'ownerUid', 'lockedAt'])
+        && validSeatId(request.resource.data.seatId)
+        && request.resource.data.ownerUid == uid
+        && request.resource.data.ownerUid == request.auth.uid
+        && validName()
+        && request.resource.data.lockedAt is timestamp;
+    }
+
     match /seatLocks/{seatId} {
       allow read: if true;
 
-      allow create: if request.auth != null
-        && !exists(/databases/$(database)/documents/seatLocks/$(seatId))
-        && request.resource.data.seatId == seatId
-        && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.name is string
-        && request.resource.data.name.size() > 0
-        && request.resource.data.name.size() <= 10;
+      allow create: if signedIn()
+        && validSeatId(seatId)
+        && validSeatLockCreate(seatId)
+        && !exists(seatPath(seatId))
+        && !exists(userSelectionPath(request.auth.uid))
+        && existsAfter(userSelectionPath(request.auth.uid))
+        && getAfter(userSelectionPath(request.auth.uid)).data.seatId == seatId
+        && getAfter(userSelectionPath(request.auth.uid)).data.ownerUid == request.auth.uid;
 
       allow update: if false;
 
-      allow delete: if request.auth != null
-        && resource.data.ownerUid == request.auth.uid;
+      allow delete: if signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && !existsAfter(userSelectionPath(request.auth.uid));
+    }
+
+    match /userSelections/{uid} {
+      allow read: if signedIn() && uid == request.auth.uid;
+
+      allow create: if signedIn()
+        && uid == request.auth.uid
+        && validUserSelectionCreate(uid)
+        && !exists(userSelectionPath(uid))
+        && existsAfter(seatPath(request.resource.data.seatId))
+        && getAfter(seatPath(request.resource.data.seatId)).data.seatId == request.resource.data.seatId
+        && getAfter(seatPath(request.resource.data.seatId)).data.ownerUid == request.auth.uid;
+
+      allow update: if false;
+
+      allow delete: if signedIn()
+        && uid == request.auth.uid
+        && !existsAfter(seatPath(resource.data.seatId));
     }
   }
 }

@@ -106,8 +106,18 @@ function canReleaseSeat(lock) {
   return Boolean(lock && lock.ownerId === currentOwnerId);
 }
 
+function getMySeatId() {
+  return Object.values(lockedSeats).find((lock) => lock.ownerId === currentOwnerId)?.seatId || null;
+}
+
 async function lockSelectedSeat() {
   if (!selectedSeatId || lockedSeats[selectedSeatId]) return;
+
+  const mySeatId = getMySeatId();
+  if (mySeatId) {
+    selectionText.textContent = `你已预选 ${getSeatLabel(mySeatId)}，每人只能选一个座位`;
+    return;
+  }
 
   const name = guestNameInput.value.trim();
   if (!name) {
@@ -145,7 +155,7 @@ async function releaseSelectedSeat() {
 
   try {
     if (mode === "remote") {
-      await firestoreApi.deleteDoc(firestoreApi.doc(firestoreApi.db, "seatLocks", selectedSeatId));
+      await releaseRemoteSeat(selectedSeatId);
     } else {
       delete lockedSeats[selectedSeatId];
       saveLocalSeats();
@@ -159,10 +169,17 @@ async function releaseSelectedSeat() {
 
 async function lockRemoteSeat(id, name) {
   const seatRef = firestoreApi.doc(firestoreApi.db, "seatLocks", id);
+  const userRef = firestoreApi.doc(firestoreApi.db, "userSelections", currentOwnerId);
 
   await firestoreApi.runTransaction(firestoreApi.db, async (transaction) => {
-    const snapshot = await transaction.get(seatRef);
-    if (snapshot.exists()) {
+    const seatSnapshot = await transaction.get(seatRef);
+    const userSnapshot = await transaction.get(userRef);
+
+    if (userSnapshot.exists()) {
+      throw new Error(`你已预选 ${getSeatLabel(userSnapshot.data().seatId)}`);
+    }
+
+    if (seatSnapshot.exists()) {
       throw new Error("这个座位已经被锁定");
     }
 
@@ -172,6 +189,39 @@ async function lockRemoteSeat(id, name) {
       ownerUid: currentOwnerId,
       lockedAt: firestoreApi.serverTimestamp(),
     });
+
+    transaction.set(userRef, {
+      seatId: id,
+      name,
+      ownerUid: currentOwnerId,
+      lockedAt: firestoreApi.serverTimestamp(),
+    });
+  });
+}
+
+async function releaseRemoteSeat(id) {
+  const seatRef = firestoreApi.doc(firestoreApi.db, "seatLocks", id);
+  const userRef = firestoreApi.doc(firestoreApi.db, "userSelections", currentOwnerId);
+
+  await firestoreApi.runTransaction(firestoreApi.db, async (transaction) => {
+    const seatSnapshot = await transaction.get(seatRef);
+    const userSnapshot = await transaction.get(userRef);
+
+    if (!seatSnapshot.exists() || seatSnapshot.data().ownerUid !== currentOwnerId) {
+      throw new Error("只能释放你本人预选的座位");
+    }
+
+    if (!userSnapshot.exists()) {
+      transaction.delete(seatRef);
+      return;
+    }
+
+    if (userSnapshot.data().seatId !== id) {
+      throw new Error("座位状态不同步，请刷新后重试");
+    }
+
+    transaction.delete(seatRef);
+    transaction.delete(userRef);
   });
 }
 
@@ -255,7 +305,10 @@ function render() {
 
   lockedCount.textContent = occupied;
   syncStatus.textContent = modeLabel;
-  lockButton.disabled = !selectedSeatId || Boolean(currentLock);
+  const mySeatId = getMySeatId();
+  const hasOtherSeat = Boolean(mySeatId && mySeatId !== selectedSeatId);
+
+  lockButton.disabled = !selectedSeatId || Boolean(currentLock) || hasOtherSeat;
   releaseButton.disabled = !ownsSelectedSeat;
 
   if (!selectedSeatId) {
@@ -264,6 +317,8 @@ function render() {
     selectionText.textContent = `${getSeatLabel(selectedSeatId)} · ${currentLock.name} · 可释放`;
   } else if (currentLock) {
     selectionText.textContent = `${getSeatLabel(selectedSeatId)} · ${currentLock.name} 已锁定`;
+  } else if (hasOtherSeat) {
+    selectionText.textContent = `你已预选 ${getSeatLabel(mySeatId)}，每人只能选一个座位`;
   } else {
     selectionText.textContent = `${getSeatLabel(selectedSeatId)} · 待锁定`;
   }
